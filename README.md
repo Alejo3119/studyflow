@@ -1,36 +1,77 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# StudyFlow
 
-## Getting Started
+Organizador de tareas y hábitos para estudiantes, con sincronización de dos vías con Google Calendar.
 
-First, run the development server:
+**Demo en vivo:** [studyflow-plum-eta.vercel.app](https://studyflow-plum-eta.vercel.app)
+
+## Funcionalidades
+
+- **Tareas**: crear, editar, completar y eliminar, con materia, prioridad y fecha límite. Se agrupan automáticamente en Vencidas / Hoy / Próximas / Sin fecha / Completadas.
+- **Hábitos**: seguimiento diario con racha (🔥) y una tira visual de los últimos 7 días.
+- **Panel principal**: resumen del día — tareas pendientes, vencidas, tareas de hoy y hábitos por marcar.
+- **Google Calendar (sincronización de dos vías)**:
+  - Al crear/editar/eliminar una tarea con fecha, se crea/actualiza/borra el evento correspondiente en tu calendario de Google automáticamente.
+  - Botón "Sincronizar" que trae eventos existentes de Google Calendar como tareas nuevas, y empuja cualquier tarea local pendiente de enviar.
+- **Multi-usuario**: cada cuenta de Google que se conecta tiene sus propias tareas y hábitos, completamente separados del resto.
+- **Modo oscuro** automático según la configuración del sistema.
+
+## Stack técnico
+
+- [Next.js 16](https://nextjs.org) (App Router, Server Actions, Turbopack) + TypeScript
+- [Tailwind CSS 4](https://tailwindcss.com)
+- [Prisma ORM](https://www.prisma.io) + [PostgreSQL](https://neon.tech) (Neon)
+- [Auth.js / NextAuth](https://authjs.dev) con proveedor de Google (OAuth) para login y acceso a Calendar API
+- Desplegado en [Vercel](https://vercel.com)
+
+## Cómo correrlo en local
+
+### 1. Requisitos
+
+- [Node.js](https://nodejs.org) 20 o superior
+- Una base de datos PostgreSQL (por ejemplo, gratis en [neon.tech](https://neon.tech))
+- Un proyecto de [Google Cloud Console](https://console.cloud.google.com) con:
+  - Google Calendar API habilitada
+  - Pantalla de consentimiento OAuth configurada (agrega tu correo en "Test users" mientras no publiques la app)
+  - Scope agregado en **Data access**: `https://www.googleapis.com/auth/calendar.events`
+  - Credenciales OAuth de tipo "Aplicación web" con este redirect URI: `http://localhost:3000/api/auth/callback/google`
+
+### 2. Instalación
+
+```bash
+npm install
+```
+
+### 3. Variables de entorno
+
+Crea un archivo `.env` en la raíz con:
+
+```bash
+DATABASE_URL="postgresql://usuario:password@host/db?sslmode=require"
+DATABASE_URL_UNPOOLED="postgresql://usuario:password@host/db?sslmode=require"
+
+AUTH_SECRET="genera uno con: node -e \"console.log(require('crypto').randomBytes(32).toString('base64'))\""
+AUTH_GOOGLE_ID="tu-client-id.apps.googleusercontent.com"
+AUTH_GOOGLE_SECRET="tu-client-secret"
+```
+
+### 4. Base de datos
+
+```bash
+npx prisma migrate dev
+```
+
+### 5. Levantar el servidor
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Abre [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Despliegue
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+El proyecto está configurado para desplegarse en Vercel con base de datos Postgres en Neon. Para producción, agrega las mismas variables de entorno en Vercel y un redirect URI adicional en Google Cloud Console apuntando a tu dominio de producción (`https://tu-dominio.vercel.app/api/auth/callback/google`).
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+vercel deploy --prod
+```
