@@ -2,12 +2,13 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { getCurrentUserId } from "@/lib/current-user";
 import { createCalendarEvent, listUpcomingCalendarEvents } from "@/lib/google-calendar";
 
 /** Pushes local tasks that have a due date but never made it to Google (e.g. connected after creating them). */
-async function pushPendingTasks() {
+async function pushPendingTasks(userId: string) {
   const pending = await prisma.task.findMany({
-    where: { googleEventId: null, dueDate: { not: null } },
+    where: { userId, googleEventId: null, dueDate: { not: null } },
   });
 
   let pushed = 0;
@@ -22,12 +23,12 @@ async function pushPendingTasks() {
 }
 
 /** Pulls events from Google Calendar and creates local tasks for any not already linked. */
-async function pullNewEvents() {
+async function pullNewEvents(userId: string) {
   const events = await listUpcomingCalendarEvents();
   if (events.length === 0) return 0;
 
   const existing = await prisma.task.findMany({
-    where: { googleEventId: { not: null } },
+    where: { userId, googleEventId: { not: null } },
     select: { googleEventId: true },
   });
   const known = new Set(existing.map((t) => t.googleEventId));
@@ -42,6 +43,7 @@ async function pullNewEvents() {
 
     await prisma.task.create({
       data: {
+        userId,
         title: event.summary || "(Sin título)",
         description: event.description ?? null,
         dueDate: new Date(rawDate),
@@ -55,8 +57,11 @@ async function pullNewEvents() {
 
 /** Two-way sync: pushes local tasks missing from Google, then pulls new Google events in as tasks. */
 export async function syncFromGoogleCalendar() {
-  const pushed = await pushPendingTasks();
-  const imported = await pullNewEvents();
+  const userId = await getCurrentUserId();
+  if (!userId) return { pushed: 0, imported: 0 };
+
+  const pushed = await pushPendingTasks(userId);
+  const imported = await pullNewEvents(userId);
 
   revalidatePath("/tasks");
   revalidatePath("/");

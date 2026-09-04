@@ -1,11 +1,17 @@
 import { prisma } from "@/lib/prisma";
 import { HabitForm } from "@/components/HabitForm";
 import { HabitCard } from "@/components/HabitCard";
+import { SignInPrompt } from "@/components/SignInPrompt";
+import { getCurrentUserId } from "@/lib/current-user";
 
 export const dynamic = "force-dynamic";
 
 export default async function HabitsPage() {
+  const userId = await getCurrentUserId();
+  if (!userId) return <SignInPrompt />;
+
   const habits = await prisma.habit.findMany({
+    where: { userId },
     include: { completions: true },
     orderBy: { createdAt: "asc" },
   });

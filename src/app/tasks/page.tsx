@@ -2,6 +2,8 @@ import type { Task } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { TaskForm } from "@/components/TaskForm";
 import { TaskItem } from "@/components/TaskItem";
+import { SignInPrompt } from "@/components/SignInPrompt";
+import { getCurrentUserId } from "@/lib/current-user";
 import { isCalendarConnected } from "@/lib/google-calendar";
 import { syncFromGoogleCalendar } from "@/app/tasks/sync-actions";
 
@@ -65,8 +67,12 @@ function TaskGroup({ title, tasks }: { title: string; tasks: Task[] }) {
 }
 
 export default async function TasksPage() {
+  const userId = await getCurrentUserId();
+  if (!userId) return <SignInPrompt />;
+
   const [tasks, connected] = await Promise.all([
     prisma.task.findMany({
+      where: { userId },
       orderBy: [{ dueDate: "asc" }, { createdAt: "desc" }],
     }),
     isCalendarConnected(),

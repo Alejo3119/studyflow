@@ -1,25 +1,38 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { TaskItem } from "@/components/TaskItem";
+import { SignInPrompt } from "@/components/SignInPrompt";
+import { getCurrentUserId } from "@/lib/current-user";
 import { toggleHabitToday } from "@/app/habits/actions";
 import { calculateStreak, dateKey } from "@/lib/streak";
 
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
+  const userId = await getCurrentUserId();
+  if (!userId) return <SignInPrompt />;
+
   const todayEnd = new Date();
   todayEnd.setHours(23, 59, 59, 999);
 
   const [pendingCount, overdueCount, todayTasks, habits] = await Promise.all([
-    prisma.task.count({ where: { completed: false } }),
+    prisma.task.count({ where: { userId, completed: false } }),
     prisma.task.count({
-      where: { completed: false, dueDate: { lt: new Date(new Date().setHours(0, 0, 0, 0)) } },
+      where: {
+        userId,
+        completed: false,
+        dueDate: { lt: new Date(new Date().setHours(0, 0, 0, 0)) },
+      },
     }),
     prisma.task.findMany({
-      where: { completed: false, dueDate: { lte: todayEnd } },
+      where: { userId, completed: false, dueDate: { lte: todayEnd } },
       orderBy: { dueDate: "asc" },
     }),
-    prisma.habit.findMany({ include: { completions: true }, orderBy: { createdAt: "asc" } }),
+    prisma.habit.findMany({
+      where: { userId },
+      include: { completions: true },
+      orderBy: { createdAt: "asc" },
+    }),
   ]);
 
   const today = dateKey(new Date());

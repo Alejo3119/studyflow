@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { updateTask } from "@/app/tasks/actions";
+import { SignInPrompt } from "@/components/SignInPrompt";
+import { getCurrentUserId } from "@/lib/current-user";
 
 function toDateInputValue(date: Date | null) {
   if (!date) return "";
@@ -10,8 +12,11 @@ function toDateInputValue(date: Date | null) {
 export default async function EditTaskPage(
   props: PageProps<"/tasks/[id]/edit">,
 ) {
+  const userId = await getCurrentUserId();
+  if (!userId) return <SignInPrompt />;
+
   const { id } = await props.params;
-  const task = await prisma.task.findUnique({ where: { id } });
+  const task = await prisma.task.findFirst({ where: { id, userId } });
   if (!task) notFound();
 
   const updateTaskWithId = updateTask.bind(null, task.id);

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { getCurrentUserId } from "@/lib/current-user";
 import {
   createCalendarEvent,
   deleteCalendarEvent,
@@ -56,12 +57,21 @@ async function syncTaskToGoogle(task: {
   }
 }
 
+/** Verifies the task exists and belongs to the current user. Returns null otherwise. */
+async function requireOwnedTask(id: string, userId: string) {
+  return prisma.task.findFirst({ where: { id, userId } });
+}
+
 export async function createTask(formData: FormData) {
+  const userId = await getCurrentUserId();
+  if (!userId) return;
+
   const title = String(formData.get("title") ?? "").trim();
   if (!title) return;
 
   const task = await prisma.task.create({
     data: {
+      userId,
       title,
       description: String(formData.get("description") ?? "").trim() || null,
       subject: String(formData.get("subject") ?? "").trim() || null,
@@ -77,6 +87,11 @@ export async function createTask(formData: FormData) {
 }
 
 export async function toggleTask(id: string, completed: boolean) {
+  const userId = await getCurrentUserId();
+  if (!userId) return;
+  const owned = await requireOwnedTask(id, userId);
+  if (!owned) return;
+
   await prisma.task.update({
     where: { id },
     data: {
@@ -90,6 +105,11 @@ export async function toggleTask(id: string, completed: boolean) {
 }
 
 export async function deleteTask(id: string) {
+  const userId = await getCurrentUserId();
+  if (!userId) return;
+  const owned = await requireOwnedTask(id, userId);
+  if (!owned) return;
+
   const task = await prisma.task.delete({ where: { id } });
 
   if (task.googleEventId && (await isCalendarConnected())) {
@@ -101,6 +121,11 @@ export async function deleteTask(id: string) {
 }
 
 export async function updateTask(id: string, formData: FormData) {
+  const userId = await getCurrentUserId();
+  if (!userId) return;
+  const owned = await requireOwnedTask(id, userId);
+  if (!owned) return;
+
   const title = String(formData.get("title") ?? "").trim();
   if (!title) return;
 
