@@ -8,6 +8,7 @@ CREATE TABLE "Task" (
     "dueDate" DATETIME,
     "completed" BOOLEAN NOT NULL DEFAULT false,
     "completedAt" DATETIME,
+    "googleEventId" TEXT,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" DATETIME NOT NULL
 );
@@ -29,6 +30,9 @@ CREATE TABLE "HabitCompletion" (
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT "HabitCompletion_habitId_fkey" FOREIGN KEY ("habitId") REFERENCES "Habit" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Task_googleEventId_key" ON "Task"("googleEventId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "HabitCompletion_habitId_date_key" ON "HabitCompletion"("habitId", "date");

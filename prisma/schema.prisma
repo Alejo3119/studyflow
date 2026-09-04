@@ -16,6 +16,7 @@ model Task {
   dueDate     DateTime?
   completed   Boolean   @default(false)
   completedAt DateTime?
+  googleEventId String? @unique
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 }

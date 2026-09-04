@@ -2,6 +2,8 @@ import type { Task } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { TaskForm } from "@/components/TaskForm";
 import { TaskItem } from "@/components/TaskItem";
+import { isCalendarConnected } from "@/lib/google-calendar";
+import { syncFromGoogleCalendar } from "@/app/tasks/sync-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -63,18 +65,38 @@ function TaskGroup({ title, tasks }: { title: string; tasks: Task[] }) {
 }
 
 export default async function TasksPage() {
-  const tasks = await prisma.task.findMany({
-    orderBy: [{ dueDate: "asc" }, { createdAt: "desc" }],
-  });
+  const [tasks, connected] = await Promise.all([
+    prisma.task.findMany({
+      orderBy: [{ dueDate: "asc" }, { createdAt: "desc" }],
+    }),
+    isCalendarConnected(),
+  ]);
   const groups = groupTasks(tasks);
 
   return (
     <div className="grid gap-6">
-      <div>
-        <h1 className="text-xl font-semibold">Tareas</h1>
-        <p className="text-sm text-muted">
-          {tasks.filter((t) => !t.completed).length} pendientes
-        </p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold">Tareas</h1>
+          <p className="text-sm text-muted">
+            {tasks.filter((t) => !t.completed).length} pendientes
+          </p>
+        </div>
+        {connected && (
+          <form
+            action={async () => {
+              "use server";
+              await syncFromGoogleCalendar();
+            }}
+          >
+            <button
+              type="submit"
+              className="rounded-md border border-border px-3 py-1.5 text-xs font-medium text-muted transition-colors hover:bg-accent/10 hover:text-accent"
+            >
+              Sincronizar con Google Calendar
+            </button>
+          </form>
+        )}
       </div>
 
       <TaskForm />
