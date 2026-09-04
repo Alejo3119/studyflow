@@ -2,12 +2,29 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { listUpcomingCalendarEvents } from "@/lib/google-calendar";
+import { createCalendarEvent, listUpcomingCalendarEvents } from "@/lib/google-calendar";
+
+/** Pushes local tasks that have a due date but never made it to Google (e.g. connected after creating them). */
+async function pushPendingTasks() {
+  const pending = await prisma.task.findMany({
+    where: { googleEventId: null, dueDate: { not: null } },
+  });
+
+  let pushed = 0;
+  for (const task of pending) {
+    const eventId = await createCalendarEvent(task);
+    if (eventId) {
+      await prisma.task.update({ where: { id: task.id }, data: { googleEventId: eventId } });
+      pushed += 1;
+    }
+  }
+  return pushed;
+}
 
 /** Pulls events from Google Calendar and creates local tasks for any not already linked. */
-export async function syncFromGoogleCalendar() {
+async function pullNewEvents() {
   const events = await listUpcomingCalendarEvents();
-  if (events.length === 0) return { imported: 0 };
+  if (events.length === 0) return 0;
 
   const existing = await prisma.task.findMany({
     where: { googleEventId: { not: null } },
@@ -33,8 +50,15 @@ export async function syncFromGoogleCalendar() {
     });
     imported += 1;
   }
+  return imported;
+}
+
+/** Two-way sync: pushes local tasks missing from Google, then pulls new Google events in as tasks. */
+export async function syncFromGoogleCalendar() {
+  const pushed = await pushPendingTasks();
+  const imported = await pullNewEvents();
 
   revalidatePath("/tasks");
   revalidatePath("/");
-  return { imported };
+  return { pushed, imported };
 }
